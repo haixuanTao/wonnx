@@ -53,6 +53,11 @@ fn get_templates() -> &'static Tera {
         )
         .unwrap();
         tera.add_raw_template(
+            "endomorphism/slice.wgsl",
+            include_str!("../templates/endomorphism/slice.wgsl"),
+        )
+        .unwrap();
+        tera.add_raw_template(
             "matrix/concat.wgsl",
             include_str!("../templates/matrix/concat.wgsl"),
         )
@@ -466,6 +471,77 @@ pub fn compile(
             NodeTemplate {
                 scalar_type: agreed_type(input_shapes, &[])?,
                 template: "endomorphism/cast.wgsl",
+                threads: (x_threads, 1, 1),
+            }
+        }
+
+        "Slice" => {
+            // This implementation is constrained to the ONNX spec, which allows for a single axis to be sliced
+            // From the ONNX spec: "starts" and "ends" must be defined, and have the same length.
+            let Some(&starts_length) = input_lengths.get(1) else {
+                return Err(CompileError::InvalidInputShape {
+                    input_index: 1,
+                    input_shape: input_shapes[1].clone(),
+                });
+            };
+
+            let Some(&ends_length) = input_lengths.get(2) else {
+                return Err(CompileError::InvalidInputShape {
+                    input_index: 2,
+                    input_shape: input_shapes[2].clone(),
+                });
+            };
+
+            if starts_length != ends_length {
+                return Err(CompileError::InvalidInputShape {
+                    input_index: 2,
+                    input_shape: input_shapes[2].clone(),
+                });
+            }
+
+            // "axes" is optional, but if it is present, it must have the same length as "starts" and "ends"
+            if let Some(&axes_length) = input_lengths.get(3) {
+                if axes_length != starts_length {
+                    return Err(CompileError::InvalidInputShape {
+                        input_index: 3,
+                        input_shape: input_shapes[3].clone(),
+                    });
+                }
+            }
+
+            // "steps" is optional, but if it is present, it must have the same length as "starts" and "ends"
+            if let Some(&steps_length) = input_lengths.get(4) {
+                if steps_length != starts_length {
+                    return Err(CompileError::InvalidInputShape {
+                        input_index: 4,
+                        input_shape: input_shapes[4].clone(),
+                    });
+                }
+            }
+
+            // Check that the "starts" and "ends" tensors have the only 1 element
+            if starts_length != 1 || ends_length != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only 1 axis)".to_string(),
+                ));
+            }
+
+            // Check that axes is included in input
+            // context.insert("defined_axes", &node.input.contains(&"axes".to_string()));
+            // context.insert("defined_steps", &node.input.contains(&"steps".to_string()));
+            context.insert("defined_axes", &true);
+            context.insert("defined_steps", &true);
+
+            let (x_threads, workgroup_size_x) = workgroup_size(
+                input_lengths[0],
+                MAX_COMPUTE_WORKGROUPS_PER_DIMENSION,
+                MAX_WORKGROUP_SIZE_X,
+            )?;
+            context.insert("workgroup_size_x", &workgroup_size_x);
+
+            NodeTemplate {
+                scalar_type: agreed_type(&input_shapes[0..1], output_shapes)?,
+                template: "endomorphism/slice.wgsl",
                 threads: (x_threads, 1, 1),
             }
         }
