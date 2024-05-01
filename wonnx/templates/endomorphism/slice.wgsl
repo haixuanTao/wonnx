@@ -58,14 +58,37 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 		let x3 = 1i;
 	{%- endif -%}
 
+	{%- if i_shape[0] | length == 1 -%}
+		let ax0_end = {{ i_shape[0][0] }}i;
+		let ax1_end = 0i;
+		let ax2_end = 0i;
+		let ax3_end = 0i;
+	{%- elif i_shape[0] | length == 2 -%}
+		let ax0_end = {{ i_shape[0][0] }}i;
+		let ax1_end = {{ i_shape[0][1] }}i;
+		let ax2_end = 0i;
+		let ax3_end = 0i;
+	{%- elif i_shape[0] | length == 3 -%}
+		let ax0_end = {{ i_shape[0][0] }}i;
+		let ax1_end = {{ i_shape[0][1] }}i;
+		let ax2_end = {{ i_shape[0][2] }}i;
+		let ax3_end = 0i;
+	{%- elif i_shape[0] | length == 4 -%}
+		let ax0_end = {{ i_shape[0][0] }}i;
+		let ax1_end = {{ i_shape[0][1] }}i;
+		let ax2_end = {{ i_shape[0][2] }}i;
+		let ax3_end = {{ i_shape[0][3] }}i;
+	{%- endif -%}
+
 	let a = i32(gidx) / (x1 * x2 * x3);
 	let b = (i32(gidx) % (x1 * x2 * x3)) / (x2 * x3);
 	let c = (i32(gidx) % (x2 * x3)) / x3;
 	let d = i32(gidx) % x3;
 
 	// Assume that starts, ends, axes and steps are only 1 element	
+
 	let start = input_1.data[0];
-	let end = input_2.data[0];
+	var end = input_2.data[0];
 
 	{%- if defined_axes and defined_steps -%}
 		let ax = input_3.data[0];
@@ -80,6 +103,18 @@ fn main(@builtin(global_invocation_id) global_id: vec3<u32>) {
 		let ax = 0;
 		let step = 1;
 	{%- endif -%}
+
+	if end == 2147483647i {
+		if ax == 0 {
+			end = ax0_end;
+		} else if ax == 1 {
+			end = ax1_end;
+		} else if ax == 2 {
+			end = ax2_end;
+		} else if ax == 3 {
+			end = ax3_end;
+		}
+	}
 
 	if ax == 0 {
 		if start <= a && a < end {

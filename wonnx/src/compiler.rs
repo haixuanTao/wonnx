@@ -476,6 +476,12 @@ pub fn compile(
         }
 
         "Slice" => {
+            if input_lengths.len() != 3 && input_lengths.len() != 5 {
+                dbg!("{:?}", input_lengths);
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only 2 or 4 inputs)".to_string(),
+                ));
+            }
             // This implementation is constrained to the ONNX spec, which allows for a single axis to be sliced
             // From the ONNX spec: "starts" and "ends" must be defined, and have the same length.
             let Some(&starts_length) = input_lengths.get(1) else {
@@ -507,6 +513,7 @@ pub fn compile(
                         input_shape: input_shapes[3].clone(),
                     });
                 }
+                context.insert("defined_axes", &true);
             }
 
             // "steps" is optional, but if it is present, it must have the same length as "starts" and "ends"
@@ -517,6 +524,7 @@ pub fn compile(
                         input_shape: input_shapes[4].clone(),
                     });
                 }
+                context.insert("defined_steps", &true);
             }
 
             // Check that the "starts" and "ends" tensors have the only 1 element
@@ -525,12 +533,6 @@ pub fn compile(
                     "Slice (supports only 1 axis)".to_string(),
                 ));
             }
-
-            // Check that axes is included in input
-            // context.insert("defined_axes", &node.input.contains(&"axes".to_string()));
-            // context.insert("defined_steps", &node.input.contains(&"steps".to_string()));
-            context.insert("defined_axes", &true);
-            context.insert("defined_steps", &true);
 
             let (x_threads, workgroup_size_x) = workgroup_size(
                 input_lengths[0],

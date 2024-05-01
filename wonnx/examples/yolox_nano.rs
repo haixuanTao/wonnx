@@ -4,6 +4,7 @@ use ndarray::s;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::Instant;
+use std::vec;
 use std::{
     fs,
     io::{BufRead, BufReader},
@@ -14,7 +15,45 @@ use wonnx::WonnxError;
 
 // Args Management
 async fn run() {
-    let probabilities = execute_gpu().await.unwrap();
+    // Output shape is [1, 8400, 85]
+    // 85 = 4 (bounding box) + 1 (objectness) + 80 (class probabilities)
+    let outputs = execute_gpu().await.unwrap();
+    let output = outputs.get("output").unwrap();
+    let output: &[f32] = output.try_into().unwrap();
+    let labels = get_imagenet_labels();
+
+    let mut detections = vec![];
+    println!("output.len(): {}", output.len());
+    for i in 0..80 {
+        println!("output[{}]: {}", i, output[5 + i + 85 * 2])
+    }
+    for i in 0..3549 {
+        let offset = i * 85;
+        let prediction = output[offset + 4];
+
+        let (class, score) = output[offset + 5..offset + 85]
+            .iter()
+            .enumerate()
+            .max_by(|a, b| (prediction * a.1).partial_cmp(&(prediction * b.1)).unwrap())
+            .unwrap();
+        let class = labels[class].clone();
+        let x1 = output[offset];
+        let y1 = output[offset + 1];
+        let x2 = output[offset + 2];
+        let y2 = output[offset + 3];
+        detections.push((class, prediction * score, x1, y1, x2, y2));
+    }
+
+    // Filter out low objectness detections
+    // detections.retain(|(_, objectness, _, _, _, _)| *objectness > 0.5);
+    detections.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+
+    for (class, objectness, x1, y1, x2, y2) in detections.iter().take(10) {
+        println!(
+            "Detected: {} with objectness: {} at [{}, {}] [{}, {}]",
+            class, objectness, x1, y1, x2, y2
+        );
+    }
 }
 
 // Hardware management
@@ -63,14 +102,13 @@ pub fn load_image() -> ndarray::ArrayBase<ndarray::OwnedRepr<f32>, ndarray::Dim<
     } else {
         Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../data/images")
-            .join("pelican.jpeg")
+            .join("yolox-sample.png")
     };
 
     let image_buffer: ImageBuffer<Rgb<u8>, Vec<u8>> = image::open(image_path)
         .unwrap()
         .resize_to_fill(416, 416, FilterType::Nearest)
         .to_rgb8();
-
     // Python:
     // # image[y, x, RGB]
     // # x==0 --> left
@@ -104,7 +142,7 @@ fn get_imagenet_labels() -> Vec<String> {
     // Download the ImageNet class labels, matching SqueezeNet's classes.
     let labels_path = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../data/models")
-        .join("squeeze-labels.txt");
+        .join("coco-classes.txt");
     let file = BufReader::new(fs::File::open(labels_path).unwrap());
 
     file.lines().map(|line| line.unwrap()).collect()
