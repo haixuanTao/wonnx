@@ -476,64 +476,48 @@ pub fn compile(
         }
 
         "Slice" => {
-            if input_lengths.len() != 3 && input_lengths.len() != 5 {
-                dbg!("{:?}", input_lengths);
+
+            // Assume that starts, endsm, axes, and steps are all defined.
+            if node.get_attribute().len() != 4 {
                 return Err(CompileError::UnimplementedOp(
-                    "Slice (supports only 2 or 4 inputs)".to_string(),
-                ));
-            }
-            // This implementation is constrained to the ONNX spec, which allows for a single axis to be sliced
-            // From the ONNX spec: "starts" and "ends" must be defined, and have the same length.
-            let Some(&starts_length) = input_lengths.get(1) else {
-                return Err(CompileError::InvalidInputShape {
-                    input_index: 1,
-                    input_shape: input_shapes[1].clone(),
-                });
-            };
-
-            let Some(&ends_length) = input_lengths.get(2) else {
-                return Err(CompileError::InvalidInputShape {
-                    input_index: 2,
-                    input_shape: input_shapes[2].clone(),
-                });
-            };
-
-            if starts_length != ends_length {
-                return Err(CompileError::InvalidInputShape {
-                    input_index: 2,
-                    input_shape: input_shapes[2].clone(),
-                });
-            }
-
-            // "axes" is optional, but if it is present, it must have the same length as "starts" and "ends"
-            if let Some(&axes_length) = input_lengths.get(3) {
-                if axes_length != starts_length {
-                    return Err(CompileError::InvalidInputShape {
-                        input_index: 3,
-                        input_shape: input_shapes[3].clone(),
-                    });
-                }
-                context.insert("defined_axes", &true);
-            }
-
-            // "steps" is optional, but if it is present, it must have the same length as "starts" and "ends"
-            if let Some(&steps_length) = input_lengths.get(4) {
-                if steps_length != starts_length {
-                    return Err(CompileError::InvalidInputShape {
-                        input_index: 4,
-                        input_shape: input_shapes[4].clone(),
-                    });
-                }
-                context.insert("defined_steps", &true);
-            }
-
-            // Check that the "starts" and "ends" tensors have the only 1 element
-            if starts_length != 1 || ends_length != 1 {
-                return Err(CompileError::UnimplementedOp(
-                    "Slice (supports only 1 axis)".to_string(),
+                    "Slice (supports only 4 attributes: starts, ends, axes, and steps)".to_string(),
                 ));
             }
 
+            let starts = node.get_attribute_value::<Vec<i64>>("starts", Some(vec![0]))?;
+            if starts.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of start is 1".to_string()
+                ));
+            }
+            context.insert("starts", &starts);
+
+            
+            let ends = node.get_attribute_value::<Vec<i64>>("ends", Some(vec![2147483647]))?;
+            if ends.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of end is 1".to_string()
+                ));
+            }
+            context.insert("ends", &ends);
+
+            let axes = node.get_attribute_value::<Vec<i64>>("axes", Some(vec![0]))?;
+            if axes.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of axes is 1".to_string()
+                ));
+            }
+            context.insert("axes", &axes);
+
+            let steps = node.get_attribute_value::<Vec<i64>>("steps", Some(vec![1]))?;
+            if steps.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of steps is 1".to_string()
+                ));
+            }
+            context.insert("steps", &steps);
+
+        
             let (x_threads, workgroup_size_x) = workgroup_size(
                 input_lengths[0],
                 MAX_COMPUTE_WORKGROUPS_PER_DIMENSION,

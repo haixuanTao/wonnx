@@ -1,57 +1,57 @@
 use std::{collections::HashMap, convert::TryInto, vec};
 use wonnx::{
     onnx::AttributeProto,
-    utils::{ graph, model, node, tensor, InputTensor},
+    utils::{ attribute, graph, model, node, tensor, InputTensor},
 };
 mod common;
 
 fn test_slice(
     input: &[f32],
     input_shape: &[i64],
-    starts: &[i32],
-    ends: &[i32],
-    axes: Option<&[i64]>,
-    steps: Option<&[i64]>,
+    starts: &Vec<i64>,
+    ends: &Vec<i64>,
+    axes: &Vec<i64>,
+    steps: &Vec<i64>,
     output: &[f32],
     output_shape: &[i64],
 ) {
     let mut input_data = HashMap::<String, InputTensor>::new();
-    let mut inputs = vec![];
-    let mut labels = vec![];
-
     input_data.insert("X".to_string(), input.into());
-    inputs.push(tensor("X", input_shape));
-    labels.push("X");
 
-    input_data.insert("starts".to_string(), starts.into());
-    inputs.push(tensor("starts", &[starts.len() as i64]));
-    labels.push("starts");
+    // input_data.insert("starts".to_string(), starts.into());
+    // input_shapes.push(tensor("starts", &[starts.len() as i64]));
+    // labels.push("starts");
 
-    input_data.insert("ends".to_string(), ends.into());
-    inputs.push(tensor("ends", &[ends.len() as i64]));
-    labels.push("ends");
+    // input_data.insert("ends".to_string(), ends.into());
+    // input_shapes.push(tensor("ends", &[ends.len() as i64]));
+    // labels.push("ends");
 
-    if let Some(axes) = axes {
-        input_data.insert("axes".to_string(), axes.into());
-        inputs.push(tensor("axes", &[axes.len() as i64]));
-        labels.push("axes");
-    } 
+    // if let Some(axes) = axes {
+    //     input_data.insert("axes".to_string(), axes.into());
+    //     inputs.push(tensor("axes", &[axes.len() as i64]));
+    //     labels.push("axes");
+    // } 
 
-    if let Some(steps) = steps {
-        input_data.insert("steps".to_string(), steps.into());
-        inputs.push(tensor("steps", &[steps.len() as i64]));
-        labels.push("steps");
-    }
+    // if let Some(steps) = steps {
+    //     input_data.insert("steps".to_string(), steps.into());
+    //     inputs.push(tensor("steps", &[steps.len() as i64]));
+    //     labels.push("steps");
+    // }
 
-    let attributes: Vec<AttributeProto> = vec![];
+    let mut attributes: Vec<AttributeProto> = vec![
+        attribute("starts", starts.clone()),
+        attribute("ends", ends.clone()),
+        attribute("axes", axes.clone()),
+        attribute("steps", steps.clone()),
+    ];
 
     let model = model(graph(
-        inputs,
+        vec![tensor("X", input_shape)],
         vec![tensor("Y", output_shape)],
         vec![],
         vec![],
         vec![node(
-            labels,
+            vec!["X"],
             vec!["Y"],
             "slice",
             "Slice",
@@ -80,10 +80,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[0],
-        &[1],
-        Some(&[0]),
-        Some(&[1]),
+        &vec![0],
+        &vec![1],
+        &vec![0],
+        &vec![1],
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
     );
@@ -92,10 +92,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[0],
-        &[2],
-        Some(&[1]),
-        Some(&[1]),
+        &vec![0],
+        &vec![2],
+        &vec![1],
+        &vec![1],
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
     );
@@ -104,10 +104,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[0],
-        &[4],
-        Some(&[2]),
-        Some(&[1]),
+        &vec![0],
+        &vec![4],
+        &vec![2],
+        &vec![1],
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
     );
@@ -116,10 +116,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[0],
-        &[1],
-        Some(&[1]),
-        Some(&[1]),
+        &vec![0],
+        &vec![1],
+        &vec![1],
+        &vec![1],
         &[[1., 2., 3., 4.]].concat(),
         &[1, 1, 4],
     );
@@ -128,10 +128,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[1],
-        &[2],
-        Some(&[1]),
-        Some(&[1]),
+        &vec![1],
+        &vec![2],
+        &vec![1],
+        &vec![1],
         &[[5., 6., 7., 8.]].concat(),
         &[1, 1, 4],
     );
@@ -140,10 +140,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[0],
-        &[2],
-        Some(&[2]),
-        Some(&[1]),
+        &vec![0],
+        &vec![2],
+        &vec![2],
+        &vec![1],
         &[[1., 2.], [5., 6.]].concat(),
         &[1, 2, 2],
     );
@@ -152,10 +152,10 @@ fn slice_step1() {
     test_slice(
         &[[1., 2., 3., 4.], [5., 6., 7., 8.]].concat(),
         &[1, 2, 4],
-        &[2],
-        &[4],
-        Some(&[2]),
-        Some(&[1]),
+        &vec![2],
+        &vec![4],
+        &vec![2],
+        &vec![1],
         &[[3., 4.], [7., 8.]].concat(),
         &[1, 2, 2],
     );
@@ -173,10 +173,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[0],
-        &[1],
-        Some(&[0]),
-        Some(&[2]),
+        &vec![0],
+        &vec![1],
+        &vec![0],
+        &vec![2],
         &[
             [ 1.,  2.,  3.,  4.], 
             [ 5.,  6.,  7.,  8.],
@@ -195,10 +195,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[0],
-        &[4],
-        Some(&[1]),
-        Some(&[2]),
+        &vec![0],
+        &vec![4],
+        &vec![1],
+        &vec![2],
         &[
             [ 1.,  2.,  3.,  4.], 
             [ 9., 10., 11., 12.], 
@@ -215,10 +215,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[1],
-        &[4],
-        Some(&[1]),
-        Some(&[2]),
+        &vec![1],
+        &vec![4],
+        &vec![1],
+        &vec![2],
         &[
             [ 5.,  6.,  7.,  8.],
             [13., 14., 15., 16.]
@@ -235,10 +235,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[0],
-        &[2],
-        Some(&[1]),
-        Some(&[2]),
+        &vec![0],
+        &vec![2],
+        &vec![1],
+        &vec![2],
         &[
             [ 1.,  2.,  3.,  4.], 
         ].concat(),
@@ -254,10 +254,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[3],
-        &[4],
-        Some(&[1]),
-        Some(&[2]),
+        &vec![3],
+        &vec![4],
+        &vec![1],
+        &vec![2],
         &[
             [13., 14., 15., 16.]
         ].concat(),
@@ -274,10 +274,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[0],
-        &[4],
-        Some(&[2]),
-        Some(&[2]),
+        &vec![0],
+        &vec![4],
+        &vec![2],
+        &vec![2],
         &[
             [ 1.,  3.], 
             [ 5.,  7.],
@@ -296,10 +296,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[0],
-        &[2],
-        Some(&[2]),
-        Some(&[2]),
+        &vec![0],
+        &vec![2],
+        &vec![2],
+        &vec![2],
         &[
             [ 1.], 
             [ 5.],
@@ -320,10 +320,10 @@ fn slice_step2() {
             [13., 14., 15., 16.]
         ].concat(),
         &[1, 4, 4, 1],
-        &[2],
-        &[4],
-        Some(&[2]),
-        Some(&[2]),
+        &vec![2],
+        &vec![4],
+        &vec![2],
+        &vec![2],
         &[
             [ 3.], 
             [ 7.],
@@ -336,45 +336,228 @@ fn slice_step2() {
 
 
 #[test]
-fn slice_1x3x640x640_step2() {
-    let input = vec![1.0; 1 * 3 * 640 * 640];
-    let output = vec![1.0; 1 * 3 * 320 * 640];
+fn slice_1x3x416x416_step2() {
+    let input0 = vec![1.0; 1 * 3 * 416 * 416];
+    let output0 = vec![1.0; 1 * 3 * 208 * 416];
     #[rustfmt::skip]    
     test_slice(
-        &input,
-        &[1, 3, 640, 640],
-        &[0],
-        &[640],
-        Some(&[2]),
-        Some(&[2]),
-        &output,
-        &[1, 3, 320, 640],
+        &input0,
+        &[1, 3, 416, 416],
+        &vec![0],
+        &vec![i32::MAX as i64],
+        &vec![2],
+        &vec![2],
+        &output0,
+        &[1, 3, 208, 416],
+    );
+}
+
+#[test]
+fn slice_1x3x416x416_step2_axes2_start0() {
+    let mut input2 = vec![];
+    for _ in 0..3 {
+        let mut row = vec![];
+        for j in 0..416 {
+            let mut col = vec![];
+            for _ in 0..416 {
+                if j % 2 == 0 {
+                    col.push(1.0);
+                } else {
+                    col.push(0.0);
+                
+                }
+            }
+            row.push(col);
+        }
+        input2.push(row);
+    }
+    // flatten the input
+    let input2 = input2.iter().flatten().flatten().copied().collect::<Vec<f32>>();
+
+
+    let output2 = vec![1.0; 1 * 3 * 208 * 416];
+    #[rustfmt::skip]    
+    test_slice(
+        &input2,
+        &[1, 3, 416, 416],
+        &vec![0],
+        &vec![i32::MAX as i64],
+        &vec![2],
+        &vec![2],
+        &output2,
+        &[1, 3, 208, 416],
     );
 }
 
 
 #[test]
-fn slice_none_axes_and_steps() {
+fn slice_1x3x416x416_step2_axes2_start1() {
+    let mut input2 = vec![];
+    for _ in 0..3 {
+        let mut row = vec![];
+        for j in 0..416 {
+            let mut col = vec![];
+            for _ in 0..416 {
+                if j % 2 == 0 {
+                    col.push(0.0);
+                } else {
+                    col.push(1.0);
+                
+                }
+            }
+            row.push(col);
+        }
+        input2.push(row);
+    }
+    // flatten the input
+    let input2 = input2.iter().flatten().flatten().copied().collect::<Vec<f32>>();
+
+
+    let output2 = vec![1.0; 1 * 3 * 208 * 416];
     #[rustfmt::skip]    
     test_slice(
-        &[
-            [ 1.,  2.,  3.,  4.], 
-            [ 5.,  6.,  7.,  8.],
-            [ 9., 10., 11., 12.], 
-            [13., 14., 15., 16.]
-        ].concat(),
-        &[4, 4, 1],
-        &[0],
-        &[2],
-        None,
-        None,
-        &[
-            [ 1.,  2.,  3.,  4.], 
-            [ 5.,  6.,  7.,  8.],
-        ].concat(),
-        &[2, 4, 1],
+        &input2,
+        &[1, 3, 416, 416],
+        &vec![1],
+        &vec![i32::MAX as i64],
+        &vec![2],
+        &vec![2],
+        &output2,
+        &[1, 3, 208, 416],
     );
 }
+
+#[test]
+fn slice_1x3x8x8_step2_axes2_start1() {
+    let input2 = vec![
+        vec![
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+        ],
+        vec![
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+        ],
+        vec![
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+            vec![1., 1., 1., 1., 1., 1., 1., 1.],
+            vec![0., 0., 0., 0., 0., 0., 0., 0.],
+        ]
+    ];
+
+    // flatten the input
+    let input2 = input2.iter().flatten().flatten().copied().collect::<Vec<f32>>();
+
+    let output2 = vec![0.0; 1 * 3 * 4 * 8];
+    #[rustfmt::skip]
+    test_slice(
+        &input2,
+        &[1, 3, 8, 8],
+        &vec![1],
+        &vec![i32::MAX as i64],
+        &vec![2],
+        &vec![2],
+        &output2,
+        &[1, 3, 4, 8],
+    );
+  
+
+}
+
+
+#[test]
+fn slice_1x3x8x8_step2_axes3_start1() {
+    let input2 = vec![
+        vec![
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+        ],
+        vec![
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+        ],
+        vec![
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+            vec![0., 1., 0., 1., 0., 1., 0., 1.],
+        ]
+    ];
+    // flatten the input
+    let input2 = input2.iter().flatten().flatten().copied().collect::<Vec<f32>>();
+
+    let output2 = vec![1.0; 1 * 3 * 8 * 4];
+    #[rustfmt::skip]
+    test_slice(
+        &input2,
+        &[1, 3, 8, 8],
+        &vec![1],
+        &vec![i32::MAX as i64],
+        &vec![3],
+        &vec![2],
+        &output2,
+        &[1, 3, 8, 4],
+    );
+}
+
+
+
+
+// #[test]
+// fn slice_none_axes_and_steps() {
+//     #[rustfmt::skip]    
+//     test_slice(
+//         &[
+//             [ 1.,  2.,  3.,  4.], 
+//             [ 5.,  6.,  7.,  8.],
+//             [ 9., 10., 11., 12.], 
+//             [13., 14., 15., 16.]
+//         ].concat(),
+//         &[4, 4, 1],
+//         &vec![0],
+//         &vec![2],
+//         &vec![0],
+//         &vec![1],
+//         &[
+//             [ 1.,  2.,  3.,  4.], 
+//             [ 5.,  6.,  7.,  8.],
+//         ].concat(),
+//         &[2, 4, 1],
+//     );
+// }
 
 
 
@@ -390,17 +573,16 @@ fn slice_ends_max_i32() {
             [13., 14., 15., 16.]
         ].concat(),
         &[4, 4, 1],
-        &[0],
-        &[i32::MAX],
-        Some(&[0]),
-        Some(&[2]),
+        &vec![0],
+        &vec![i32::MAX as i64],
+        &vec![0],
+        &vec![2],
         &[
             [ 1.,  2.,  3.,  4.], 
             [ 9., 10., 11., 12.], 
         ].concat(),
         &[2, 4, 1],
     );
-
 
     #[rustfmt::skip]    
     test_slice(
@@ -411,10 +593,10 @@ fn slice_ends_max_i32() {
             [13., 14., 15., 16.]
         ].concat(),
         &[4, 4, 1],
-        &[0],
-        &[i32::MAX],
-        Some(&[1]),
-        Some(&[2]),
+        &vec![0],
+        &vec![i32::MAX as i64],
+        &vec![1],
+        &vec![2],
         &[
             [ 1.,  3.], 
             [ 5.,  7.],
