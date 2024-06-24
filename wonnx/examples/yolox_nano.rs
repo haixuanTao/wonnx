@@ -239,9 +239,9 @@ fn get_coco_labels() -> Vec<String> {
  Main
 --------------------------------------------------------------------------------*/
 // Hardware management
-async fn execute_gpu() -> Result<HashMap<String, OutputTensor>, WonnxError> {
+async fn execute_gpu() -> Result<Vec<(String, f32, f32, f32, f32, f32)>, WonnxError> {
     let mut input_data = HashMap::new();
-    let (image, image_buffer) = load_image();
+    let (image, _) = load_image();
     let images = image.as_slice().try_into().unwrap();
     input_data.insert("images".to_string(), images);
 
@@ -265,29 +265,29 @@ async fn execute_gpu() -> Result<HashMap<String, OutputTensor>, WonnxError> {
     let output = output.try_into().unwrap();
     let positions = post_process(output);
     let time_post_compute = Instant::now();
-    let mut image_buffer = image_buffer;
-    for (class, score, x0, y0, x1, y1) in positions {
-        println!(
-            "class: {}, score: {}, x0: {}, y0: {}, x1: {}, y1: {}",
-            class, score, x0, y0, x1, y1
-        );
-        draw_rect(&mut image_buffer, x0, y0, x1, y1);
-    }
-    image_buffer.save("output_dog.jpg").unwrap();
     println!(
         "time: post_processing: {:#?}",
         time_post_compute - time_pre_compute
     );
 
-    Ok(result)
+    Ok(positions)
 }
 
 async fn run() {
     // Output shape is [1, 3549, 85]
     // 85 = 4 (bounding box) + 1 (objectness) + 80 (class probabilities)
-    let outputs = execute_gpu().await.unwrap();
-    let output = outputs.get("output").unwrap();
-    let output: &[f32] = output.try_into().unwrap();
+    let preds = execute_gpu().await.unwrap();
+
+    let (_, image_buffer) = load_image();
+    let mut image_buffer = image_buffer;
+    for (class, score, x0, y0, x1, y1) in preds.iter() {
+        println!(
+            "class: {}, score: {}, x0: {}, y0: {}, x1: {}, y1: {}",
+            class, *score, *x0, *y0, *x1, *y1
+        );
+        draw_rect(&mut image_buffer, *x0, *y0, *x1, *y1);
+    }
+    image_buffer.save("yolox_predict.jpg").unwrap();
 }
 
 fn main() {
