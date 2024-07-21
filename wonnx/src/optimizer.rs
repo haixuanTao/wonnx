@@ -561,7 +561,7 @@ impl<'model> Optimizer<'model> {
                     op @ ("Clip" | "Pad" | "Split" | "Resize" | "Reshape" | "ReduceMean"
                     | "ReduceSum" | "ReduceMin" | "ReduceMax" | "ReduceSumSquare"
                     | "ReduceLogSumExp" | "ReduceLogSum" | "ReduceL2" | "ReduceL1"
-                    | "ReduceProd") => {
+                    | "ReduceProd" | "Slice") => {
                         if new_inputs.is_empty() {
                             return Err(OptimizerError::NoInputs);
                         }
@@ -583,6 +583,7 @@ impl<'model> Optimizer<'model> {
                             "ReduceMin" => REDUCE_OPS_INPUT_NAMES,
                             "ReduceProd" => REDUCE_OPS_INPUT_NAMES,
                             "ReduceSumSquare" => REDUCE_OPS_INPUT_NAMES,
+                            "Slice" => SLICE_INPUT_NAMES,
                             _ => unreachable!(),
                         };
 
@@ -614,7 +615,8 @@ impl<'model> Optimizer<'model> {
                                         )
                                         | ("Pad", "pads")
                                         | ("Resize", "scales")
-                                        | ("Clip", "min" | "max") => match data_type {
+                                        | ("Clip", "min" | "max")
+                                        | ("Slice", "starts" | "ends" | "axes" | "steps") => match data_type {
                                             ScalarType::F32 => {
                                                 let value: Vec<f32> = if tensor_proto
                                                     .get_float_data()
@@ -640,13 +642,21 @@ impl<'model> Optimizer<'model> {
                                                 let value = if tensor_proto
                                                     .get_int64_data()
                                                     .is_empty()
-                                                {
+                                                {                                               
                                                     pod_collect_to_vec(tensor_proto.get_raw_data())
                                                 } else {
                                                     tensor_proto.get_int64_data().to_vec()
                                                 };
+                                                // If values is larger than i32::MAX, we need to convert it to i32::MAX
+                                                let value = value.iter().map(|x| {
+                                                    if *x > i32::MAX as i64 {
+                                                        i32::MAX as i64
+                                                    } else {
+                                                        *x
+                                                    }
+                                                }).collect::<Vec<i64>>();
                                                 log::info!(
-                                                    "transferring input {} for op {} to i64 attribute (initializer data type: {:?}): {:?}",
+                                                    "transferring input \"{}\" for op \"{}\" to i64 attribute (initializer data type: {:?}): {:?}",
                                                     attr_name,
                                                     op,
                                                     data_type,
@@ -702,7 +712,6 @@ impl<'model> Optimizer<'model> {
 
                         Ok(Arc::new(new_node))
                     }
-
                     _ => Ok(Arc::new(Node {
                         inputs: new_inputs,
                         definition: NodeDefinition::Operator(op_def.clone()),
@@ -819,6 +828,7 @@ static RESHAPE_INPUT_NAMES: &[&str] = &["data", "shape"];
 static CLIP_INPUT_NAMES: &[&str] = &["input", "min", "max"];
 static REDUCE_OPS_INPUT_NAMES: &[&str] = &["input", "axes"];
 static PAD_INPUT_NAMES: &[&str] = &["data", "pads", "constant_value"];
+static SLICE_INPUT_NAMES: &[&str] = &["data", "starts", "ends", "axes", "steps"];
 
 /// Generate the output for a ConstantOfShape node
 pub fn constant_of_shape_output(

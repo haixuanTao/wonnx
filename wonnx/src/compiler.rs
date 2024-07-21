@@ -53,6 +53,11 @@ fn get_templates() -> &'static Tera {
         )
         .unwrap();
         tera.add_raw_template(
+            "endomorphism/slice.wgsl",
+            include_str!("../templates/endomorphism/slice.wgsl"),
+        )
+        .unwrap();
+        tera.add_raw_template(
             "matrix/concat.wgsl",
             include_str!("../templates/matrix/concat.wgsl"),
         )
@@ -470,6 +475,60 @@ pub fn compile(
             }
         }
 
+        "Slice" => {
+            // Assume that starts, endsm, axes, and steps are all defined.
+            if node.get_attribute().len() != 4 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only 4 attributes: starts, ends, axes, and steps)".to_string(),
+                ));
+            }
+
+            let starts = node.get_attribute_value::<Vec<i64>>("starts", Some(vec![0]))?;
+            if starts.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of start is 1".to_string(),
+                ));
+            }
+            context.insert("starts", &starts);
+
+            let ends = node.get_attribute_value::<Vec<i64>>("ends", Some(vec![2147483647]))?;
+            if ends.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of end is 1".to_string(),
+                ));
+            }
+            context.insert("ends", &ends);
+
+            let axes = node.get_attribute_value::<Vec<i64>>("axes", Some(vec![0]))?;
+            if axes.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of axes is 1".to_string(),
+                ));
+            }
+            context.insert("axes", &axes);
+
+            let steps = node.get_attribute_value::<Vec<i64>>("steps", Some(vec![1]))?;
+            if steps.len() != 1 {
+                return Err(CompileError::UnimplementedOp(
+                    "Slice (supports only that the length of steps is 1".to_string(),
+                ));
+            }
+            context.insert("steps", &steps);
+
+            let (x_threads, workgroup_size_x) = workgroup_size(
+                input_lengths[0],
+                MAX_COMPUTE_WORKGROUPS_PER_DIMENSION,
+                MAX_WORKGROUP_SIZE_X,
+            )?;
+            context.insert("workgroup_size_x", &workgroup_size_x);
+
+            NodeTemplate {
+                scalar_type: agreed_type(&input_shapes[0..1], output_shapes)?,
+                template: "endomorphism/slice.wgsl",
+                threads: (x_threads, 1, 1),
+            }
+        }
+
         "Softmax" => {
             let default_axis = match opset_version {
                 1..=10 => 1,   // https://github.com/onnx/onnx/blob/master/docs/Changelog.md#softmax-1
@@ -803,6 +862,9 @@ pub fn compile(
                 input_cumulative_len.push(sum);
             }
             context.insert("cum_len", &input_cumulative_len);
+
+            let axis = node.get_attribute_value("axis", Some(0))? as usize;
+            context.insert("axis", &axis);
 
             let root = output_lengths[0].sqrt() + 1;
             let per_dim = ceil(root, 16) + 1;
