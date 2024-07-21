@@ -18,27 +18,7 @@ fn test_slice(
     let mut input_data = HashMap::<String, InputTensor>::new();
     input_data.insert("X".to_string(), input.into());
 
-    // input_data.insert("starts".to_string(), starts.into());
-    // input_shapes.push(tensor("starts", &[starts.len() as i64]));
-    // labels.push("starts");
-
-    // input_data.insert("ends".to_string(), ends.into());
-    // input_shapes.push(tensor("ends", &[ends.len() as i64]));
-    // labels.push("ends");
-
-    // if let Some(axes) = axes {
-    //     input_data.insert("axes".to_string(), axes.into());
-    //     inputs.push(tensor("axes", &[axes.len() as i64]));
-    //     labels.push("axes");
-    // } 
-
-    // if let Some(steps) = steps {
-    //     input_data.insert("steps".to_string(), steps.into());
-    //     inputs.push(tensor("steps", &[steps.len() as i64]));
-    //     labels.push("steps");
-    // }
-
-    let mut attributes: Vec<AttributeProto> = vec![
+    let attributes: Vec<AttributeProto> = vec![
         attribute("starts", starts.clone()),
         attribute("ends", ends.clone()),
         attribute("axes", axes.clone()),
@@ -481,7 +461,6 @@ fn slice_1x3x8x8_step2_axes2_start1() {
 
 }
 
-
 #[test]
 fn slice_1x3x8x8_step2_axes3_start1() {
     let input2 = vec![
@@ -533,34 +512,28 @@ fn slice_1x3x8x8_step2_axes3_start1() {
     );
 }
 
-
-
-
-// #[test]
-// fn slice_none_axes_and_steps() {
-//     #[rustfmt::skip]    
-//     test_slice(
-//         &[
-//             [ 1.,  2.,  3.,  4.], 
-//             [ 5.,  6.,  7.,  8.],
-//             [ 9., 10., 11., 12.], 
-//             [13., 14., 15., 16.]
-//         ].concat(),
-//         &[4, 4, 1],
-//         &vec![0],
-//         &vec![2],
-//         &vec![0],
-//         &vec![1],
-//         &[
-//             [ 1.,  2.,  3.,  4.], 
-//             [ 5.,  6.,  7.,  8.],
-//         ].concat(),
-//         &[2, 4, 1],
-//     );
-// }
-
-
-
+#[test]
+fn slice_none_axes_and_steps() {
+    #[rustfmt::skip]    
+    test_slice(
+        &[
+            [ 1.,  2.,  3.,  4.], 
+            [ 5.,  6.,  7.,  8.],
+            [ 9., 10., 11., 12.], 
+            [13., 14., 15., 16.]
+        ].concat(),
+        &[4, 4, 1],
+        &vec![0],
+        &vec![2],
+        &vec![0],
+        &vec![1],
+        &[
+            [ 1.,  2.,  3.,  4.], 
+            [ 5.,  6.,  7.,  8.],
+        ].concat(),
+        &[2, 4, 1],
+    );
+}
 
 #[test]
 fn slice_ends_max_i32() {

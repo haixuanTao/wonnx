@@ -1,5 +1,4 @@
-use core::time;
-use image::{imageops, io};
+use image::imageops;
 use image::{imageops::FilterType, ImageBuffer, Pixel, Rgb};
 use imageproc::drawing::draw_hollow_rect_mut;
 use imageproc::rect::Rect;
@@ -7,13 +6,12 @@ use log::info;
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::time::Instant;
+use std::vec;
 use std::{
     fs,
     io::{BufRead, BufReader},
     path::Path,
 };
-use std::{result, vec};
-use wonnx::utils::OutputTensor;
 use wonnx::WonnxError;
 
 /*-----------------------------------------------------------------------------
@@ -209,7 +207,6 @@ fn load_image() -> (Vec<f32>, ImageBuffer<Rgb<u8>, Vec<u8>>) {
     let image_buffer: ImageBuffer<Rgb<u8>, Vec<u8>> = image::open(image_path).unwrap().to_rgb8();
     let image_buffer = padding_image(image_buffer);
     let image_buffer = imageops::resize(&image_buffer, 416, 416, FilterType::Nearest);
-    image_buffer.save("resized_dog.jpg").unwrap();
 
     // convert image to Vec<f32> with channel first format
     let mut image = vec![0.0; 3 * 416 * 416];
